@@ -43,4 +43,4 @@ def MoRF(model, loaders, perc):
             d = softm(model(images.cuda()*maskpos.cuda())).cpu().detach().numpy()[0,torch.argmax(softm(model(images.cuda())))]/torch.max(softm(model(images.cuda()))).cpu().detach().numpy()
             drops[j] += d
     
-    return drops/len( len(loaders['test']))
+    return drops/len(loaders['test'])

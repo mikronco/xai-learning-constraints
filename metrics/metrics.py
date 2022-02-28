@@ -30,11 +30,9 @@ def accuracy(model, loaders):
 
 def MoRF(model, loaders, perc):
     softm = Softmax()
-    n = 0
     drops = np.zeros(len(perc))
     grad = Saliency(model)
     for images, labels in loaders['test']:
-        n+=1
         images, labels = images.to(device), labels.to(device)
         attr = grad.attribute(images, target=labels.item())
         attr = attr.squeeze()
@@ -45,4 +43,4 @@ def MoRF(model, loaders, perc):
             d = softm(model(images.cuda()*maskpos.cuda())).cpu().detach().numpy()[0,torch.argmax(softm(model(images.cuda())))]/torch.max(softm(model(images.cuda()))).cpu().detach().numpy()
             drops[j] += d
     
-    return drops/n
+    return drops/len( len(loaders['test']))

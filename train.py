@@ -45,7 +45,7 @@ def train_base(model, loaders, num_epochs, optimizer, loss_func = StandardCrossE
         
         acc_x_epoch.append(accuracy)
     
-    return (model, acc_x_epoch, loss_x_batch)
+    return (acc_x_epoch, loss_x_batch)
 
 
 
@@ -70,6 +70,7 @@ def train_fidelity(model, loaders, num_epochs, optimizer, loss_func = FidelityCo
             b_x_masked = b_x*(1-ngrad)
             output_masked = model(b_x_masked)
             loss = loss_func(output, output_masked, b_y)
+            loss_x_batch.append(loss)
             flat_out = np.argmax(output.detach().cpu().numpy(), axis=1)
             correct += (flat_out == b_y.detach().cpu().numpy()).sum()
             optimizer.zero_grad()           
@@ -87,7 +88,7 @@ def train_fidelity(model, loaders, num_epochs, optimizer, loss_func = FidelityCo
         
         acc_x_epoch.append(accuracy)
     
-    return (model, acc_x_epoch, loss_x_batch)
+    return (acc_x_epoch, loss_x_batch)
 
 
 
@@ -111,6 +112,7 @@ def train_locality(model, loaders, num_epochs, optimizer, loss_func = LocalityCo
             gmin = grads.view(b_x.size(0), 1, -1).min(2).values.view(b_x.size(0), 1, 1, 1)
             ngrad = (grads - gmin)/(gmax - gmin)
             loss = loss_func(output, ngrad, b_x, b_y)
+            loss_x_batch.append(loss)
             flat_out = np.argmax(output.detach().cpu().numpy(), axis=1)
             correct += (flat_out == b_y.detach().cpu().numpy()).sum()
             optimizer.zero_grad()           
@@ -128,5 +130,5 @@ def train_locality(model, loaders, num_epochs, optimizer, loss_func = LocalityCo
         
         acc_x_epoch.append(accuracy)
     
-    return (model, acc_x_epoch, loss_x_batch)
+    return (acc_x_epoch, loss_x_batch)
 

@@ -44,3 +44,25 @@ def MoRF(model, loaders, perc):
             drops[j] += d
     
     return drops/len(loaders['test'])
+
+
+def faithfulness(model, loaders, perc):
+    softm = Softmax()
+    grad = Saliency(model)
+    corr = []
+    for images, labels in loaders['test']:
+        images, labels = images.to(device), labels.to(device)
+        attr = grad.attribute(images, target=labels.item())
+        attr = attr.squeeze()
+        sumgrad = np.zeros(len(perc))
+        diffpred = np.zeros(len(perc))
+        for j in range(len(perc)):
+            q3, q1 = np.percentile(attr[attr!=0].flatten().cpu().detach().numpy(), [perc[j], 100-perc[j]])
+            maskpos = torch.ones((images.shape[-1], images.shape[-1])).to(device)
+            maskpos[attr>q3]=0
+            sumgrad[j] = attr[attr>q3].sum()
+            diffpred[j] = softm(model(images)).squeeze()[labels].item() - softm(model(maskpos*images)).squeeze()[labels].item()
+        
+        corr.append(np.corrcoef(sumgrad, diffpred)[0,1])                   
+    
+    return corr

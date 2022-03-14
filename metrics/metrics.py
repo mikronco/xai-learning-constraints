@@ -27,8 +27,20 @@ def accuracy(model, loaders):
     return acc
 
 
+def complexity(model, loaders):
+    model.eval()
+    grad = Saliency(model)
+    for images, labels in loaders['test']:
+        images, labels = images.to(device), labels.to(device)
+    attr = grad.attribute(images, target=labels)
+    normfactor = attr.sum(dim=(2,3))
+    pg = attr.squeeze(1).reshape(images.shape[0], images.shape[-1]*images.shape[-1])/normfactor
+    mc = -(pg*torch.log(pg+0.01)).sum(1)
+    return mc.mean().item()
+    
 
 def MoRF(model, loaders, perc):
+    model.eval()
     softm = Softmax()
     drops = np.zeros(len(perc))
     grad = Saliency(model)
@@ -47,6 +59,7 @@ def MoRF(model, loaders, perc):
 
 
 def faithfulness(model, loaders, perc):
+    model.eval()
     softm = Softmax()
     grad = Saliency(model)
     corr = []

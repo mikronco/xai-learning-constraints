@@ -10,7 +10,7 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 
 
-def MNIST_data(batch_size = 20):
+def MNIST_data(batch_size = 20, test_batch_size = 1):
 
     train_data = datasets.MNIST(
         root = 'data',
@@ -32,7 +32,7 @@ def MNIST_data(batch_size = 20):
                                           num_workers=1),
     
         'test'  : torch.utils.data.DataLoader(test_data, 
-                                          batch_size=1, 
+                                          batch_size=test_batch_size, 
                                           shuffle=True, 
                                           num_workers=1),
     }

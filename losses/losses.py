@@ -20,6 +20,19 @@ class StandardCrossEntropy(Module):
         return -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0)
     
  
+class GradientRegularization(Module):
+    log_softmax = LogSoftmax()
+
+    def __init__(self, cweight = 0.1):
+        super().__init__()
+        self.alpha = cweight
+
+    def forward(self, outputs, grad, y):
+        log_probabilities = self.log_softmax(outputs)
+        xloss = torch.abs(grad).mean()
+        return -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0)+self.alpha*xloss
+    
+ 
 class FidelityConstraint(Module):
     log_softmax = LogSoftmax()
     softmax = Softmax()

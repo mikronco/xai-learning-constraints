@@ -4,12 +4,12 @@ Created on Mon Feb 28 15:25:02 2022
 
 @author: unknown
 """
-
+import sys
 import numpy as np
 import torch
 from torch.autograd import Variable
 from utils.utils import input_grads
-from losses.losses import StandardCrossEntropy, FidelityConstraint, LocalityConstraint, GradientRegularization
+from losses.losses import StandardCrossEntropy, FidelityConstraint, LocalityConstraint, GradientRegularization, ConsistencyConstraint
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -133,12 +133,19 @@ def train_locality(model, loaders, num_epochs, optimizer, loss_func = LocalityCo
     return (acc_x_epoch, loss_x_batch)
 
 
-def train_gradreg(model, loaders, num_epochs, optimizer, loss_func = GradientRegularization()): 
+def train_gradreg(model, loaders, num_epochs, optimizer, constraint = "grad_reg", alpha = 1.): 
     model.train()        
     total_step = len(loaders['train'])    
     acc_x_epoch = []
     loss_x_batch = []
-        
+    
+    if constraint == "grad_reg":
+        loss_func = GradientRegularization()
+    elif constraint == "consistency":
+        loss_func = ConsistencyConstraint(cweight = alpha)
+    else:
+        sys.exit("Specify valid penalty term!")
+    
     for epoch in range(num_epochs):
         correct = 0
         for i, (images, labels) in enumerate(loaders['train']):

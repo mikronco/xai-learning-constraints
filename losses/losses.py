@@ -63,7 +63,32 @@ class LocalityConstraint(Module):
         xloss = -( x*torch.log(grad+self.smt) + (torch.as_tensor(1.)-x)*torch.log(torch.as_tensor(1.)-grad+self.smt)).mean()
         log_probabilities = self.log_softmax(outputs)
         celoss = -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0)
-        print("locality xloss = ", xloss)
+        return celoss + self.alpha*xloss
+    
+
+class ConsistencyConstraint(Module):
+    log_softmax = LogSoftmax()
+    softmax = Softmax()
+    cosim = CosineSimilarity(dim=-1)
+    
+    def __init__(self, cweight = 1.):
+        super().__init__()
+        self.alpha = cweight
+    
+    def forward(self, outputs, grad, y):
+        xloss = 0
+        gmax = grad.view(grad.size(0), 1, -1).max(2).values.view(grad.size(0), 1, 1, 1)
+        gmin = grad.view(grad.size(0), 1, -1).min(2).values.view(grad.size(0), 1, 1, 1)
+        ngrad = (grad - gmin)/(gmax - gmin)
+        for n in range(10):
+            cgrad = ngrad[(torch.argmax(self.softmax(outputs), dim=1) == n),:,:,:]
+            cgrad = cgrad.reshape(cgrad.shape[0], cgrad.shape[-1]*cgrad.shape[-1])
+            for i in range(cgrad.shape[0]):
+                for j in range((i+1),cgrad.shape[0]):
+                    xloss += 1-self.cosim(cgrad[i,:], cgrad[j,:])
+        xloss /= y.size(0)
+        log_probabilities = self.log_softmax(outputs)
+        celoss = -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0)
         return celoss + self.alpha*xloss
 
 

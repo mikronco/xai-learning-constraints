@@ -92,3 +92,25 @@ class ConsistencyConstraint(Module):
         return celoss + self.alpha*xloss
 
 
+class GeneralizabilityConstraint(Module): 
+    log_softmax = LogSoftmax()
+    softmax = Softmax()
+    cosim = CosineSimilarity(dim=-1)
+    
+    def __init__(self, cweight = 1.):
+        super().__init__()
+        self.alpha = cweight
+    
+    def forward(self, outputs, ngrad, model, x, y):
+        xloss = 0
+        for n in range(10):
+            cgrad = ngrad[(torch.argmax(self.softmax(outputs), dim=1) == n),:,:,:]
+            for i in range(cgrad.shape[0]):
+                x1 = x[(torch.argmax(self.softmax(outputs), dim=1) == n),:,:,:]*cgrad[i,:,:,:].unsqueeze(0)
+                outputs1 = model(x1)
+                log_prob1 = self.log_softmax(outputs1)
+                xloss += log_prob1.gather(1, y[(torch.argmax(self.softmax(outputs), dim=1) == n)].unsqueeze(1)).sum()/y[(torch.argmax(self.softmax(outputs), dim=1) == n)].size(0)
+        log_probabilities = self.log_softmax(outputs)
+        celoss = -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0)
+        return celoss - self.alpha*xloss
+

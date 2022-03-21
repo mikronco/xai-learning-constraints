@@ -14,7 +14,7 @@ class CNN3b(Module):
         self.conv1 = Sequential(         
             Conv2d(
                 in_channels=1,              
-                out_channels=16,            
+                out_channels=8,            
                 kernel_size=5,              
                 stride=1,                   
                 padding=2,                  
@@ -23,11 +23,11 @@ class CNN3b(Module):
             MaxPool2d(kernel_size=2),    
         )
         self.conv2 = Sequential(         
-            Conv2d(16, 32, 5, 1, 2),     
+            Conv2d(8, 16, 5, 1, 2),     
             ReLU(),                      
             MaxPool2d(2),                
         )
-        self.out = Linear(32 * 7 * 7, 10)
+        self.out = Linear(16 * 7 * 7, 10)
         
     def forward(self, x):
         x = self.conv1(x)

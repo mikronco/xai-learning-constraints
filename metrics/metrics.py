@@ -39,11 +39,16 @@ def complexity(model, loaders):
     return mc.mean().item()
     
 
-def MoRF(model, loaders, perc):
+def MoRF(model, loaders, perc, model_attr = None):
     model.eval()
     softm = Softmax()
     drops = np.zeros(len(perc))
-    grad = Saliency(model)
+    if model_attr:
+        model_attr.eval()
+        grad = Saliency(model_attr)
+    else:
+        grad = Saliency(model)
+        
     for images, labels in loaders['test']:
         images, labels = images.to(device), labels.to(device)
         attr = grad.attribute(images, target=labels.item())

@@ -114,3 +114,21 @@ class GeneralizabilityConstraint(Module):
         celoss = -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0)
         return celoss - self.alpha*xloss
 
+
+class SmoothnessConstraint(Module):
+    log_softmax = LogSoftmax()
+
+    def __init__(self, cweight = 0.1):
+        super().__init__()
+        self.alpha = cweight
+
+    def forward(self, outputs, grad, y):
+        grad = grad.squeeze()
+        dim = grad.shape[-1]
+        log_probabilities = self.log_softmax(outputs)
+        xloss = torch.stack([(torch.abs(grad[:,i+1,j] - grad[:,i,j])+torch.abs(grad[:,i,j+1] - grad[:,i,j])) for i in range(dim-1) for j in range(dim-1)])
+        xloss = xloss.sum(dim=0)
+
+        return -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0)+self.alpha*xloss.mean()
+    
+ 

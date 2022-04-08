@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch.autograd import Variable
 from utils.utils import input_grads
-from losses.losses import StandardCrossEntropy, FidelityConstraint, LocalityConstraint, GradientRegularization, ConsistencyConstraint, GeneralizabilityConstraint
+from losses.losses import StandardCrossEntropy, FidelityConstraint, SmoothnessConstraint, LocalityConstraint, GradientRegularization, ConsistencyConstraint, GeneralizabilityConstraint
 from torch.nn import Softmax
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -108,7 +108,7 @@ def train_locality(model, loaders, num_epochs, optimizer, loss_func = LocalityCo
             b_x = Variable(images, requires_grad = True)   # batch x
             b_y = Variable(labels)   # batch y
             output = model(b_x)
-            grads = input_grads(output, b_x, b_y)     
+            grads = input_grads(output, b_x, b_y)  
             gmax = grads.view(b_x.size(0), 1, -1).max(2).values.view(b_x.size(0), 1, 1, 1)
             gmin = grads.view(b_x.size(0), 1, -1).min(2).values.view(b_x.size(0), 1, 1, 1)
             ngrad = (grads - gmin)/(gmax - gmin)
@@ -134,7 +134,7 @@ def train_locality(model, loaders, num_epochs, optimizer, loss_func = LocalityCo
     return (acc_x_epoch, loss_x_batch)
 
 
-def train_gradreg(model, loaders, num_epochs, optimizer, constraint = "grad_reg", alpha = 1.): 
+def train_gradreg(model, loaders, num_epochs, optimizer, constraint = "grad_reg", alpha = 0.1): 
     model.train()        
     total_step = len(loaders['train'])    
     acc_x_epoch = []
@@ -144,6 +144,8 @@ def train_gradreg(model, loaders, num_epochs, optimizer, constraint = "grad_reg"
         loss_func = GradientRegularization()
     elif constraint == "consistency":
         loss_func = ConsistencyConstraint(cweight = alpha)
+    elif constraint == "smoothness":
+        loss_func = SmoothnessConstraint(cweight = alpha)
     else:
         sys.exit("Specify valid penalty term!")
     

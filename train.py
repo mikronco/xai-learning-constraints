@@ -8,7 +8,7 @@ import sys
 import numpy as np
 import torch
 from torch.autograd import Variable
-from utils.utils import input_grads
+from utils.utils import input_grads, integrated_grads
 from losses.losses import StandardCrossEntropy, FidelityConstraint, SmoothnessConstraint, LocalityConstraint, GradientRegularization, ConsistencyConstraint
 from torch.nn import Softmax
 
@@ -38,7 +38,8 @@ def train_xai(model, loaders, num_epochs, optimizer, penalty = "base", alpha = 0
             if penalty == "base":
                 loss = loss_func(output, b_y)
             else:
-                grads = input_grads(output, b_x, b_y)     
+#                grads = input_grads(output, b_x, b_y)
+                grads = integrated_grads(model, b_x, torch.zeros(b_x.shape).to(device), b_y)     
                 loss = loss_func(output, grads, b_x, model, b_y)
             loss_x_batch.append(loss)
             flat_out = np.argmax(output.detach().cpu().numpy(), axis=1)

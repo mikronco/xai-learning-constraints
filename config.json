@@ -2,7 +2,7 @@
   "penalty": "smoothness", 
   "lambda": 0.1, 
   "batch_size": 60,
-  "epoch": 8, 
+  "epoch": 4, 
   "topic": "config file",
   "outfolder": "C:\\Users\\unknown\\Desktop\\xai_projects\\xai-learning-constraints\\results"
 }

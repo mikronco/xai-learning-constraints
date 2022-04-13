@@ -27,7 +27,7 @@ class GradientRegularization(Module):
         super().__init__()
         self.alpha = cweight
 
-    def forward(self, outputs, grad, y):
+    def forward(self, outputs, grad, x, model, y):
         log_probabilities = self.log_softmax(outputs)
         xloss = torch.abs(grad).mean()
         return -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0)+self.alpha*xloss
@@ -43,7 +43,12 @@ class FidelityConstraint(Module):
         self.alpha = cweight
         self.thr = min_dist
     
-    def forward(self, outputs, outputs0, y):
+    def forward(self, outputs, grad, x, model, y):
+        gmax = grad.view(x.size(0), 1, -1).max(2).values.view(x.size(0), 1, 1, 1)
+        gmin = grad.view(x.size(0), 1, -1).min(2).values.view(x.size(0), 1, 1, 1)
+        ngrad = (grad - gmin)/(gmax - gmin)
+        x_masked = x*(1-ngrad)
+        outputs0 = model(x_masked)
         dist = torch.abs(self.cosim(outputs, outputs0))
         xloss = torch.max(torch.as_tensor(0).cuda(), dist.sum()/y.size(0)-torch.as_tensor(self.thr).cuda())
         log_probabilities = self.log_softmax(outputs)
@@ -59,8 +64,11 @@ class LocalityConstraint(Module):
         self.alpha = cweight
         self.smt = min_grad
     
-    def forward(self, outputs, grad, x, y):
-        xloss = -( x*torch.log(grad+self.smt) + (torch.as_tensor(1.)-x)*torch.log(torch.as_tensor(1.)-grad+self.smt)).mean()
+    def forward(self, outputs, grad, x, model, y):
+        gmax = grad.view(x.size(0), 1, -1).max(2).values.view(x.size(0), 1, 1, 1)
+        gmin = grad.view(x.size(0), 1, -1).min(2).values.view(x.size(0), 1, 1, 1)
+        ngrad = (grad - gmin)/(gmax - gmin)
+        xloss = -(x*torch.log(ngrad+self.smt) + (torch.as_tensor(1.)-x)*torch.log(torch.as_tensor(1.)-ngrad+self.smt)).mean()
         log_probabilities = self.log_softmax(outputs)
         celoss = -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0)
         return celoss + self.alpha*xloss
@@ -75,7 +83,7 @@ class ConsistencyConstraint(Module):
         super().__init__()
         self.alpha = cweight
     
-    def forward(self, outputs, grad, y):
+    def forward(self, outputs, grad, x, model, y):
         xloss = 0
         gmax = grad.view(grad.size(0), 1, -1).max(2).values.view(grad.size(0), 1, 1, 1)
         gmin = grad.view(grad.size(0), 1, -1).min(2).values.view(grad.size(0), 1, 1, 1)
@@ -83,14 +91,31 @@ class ConsistencyConstraint(Module):
         for n in range(10):
             cgrad = ngrad[(torch.argmax(self.softmax(outputs), dim=1) == n),:,:,:]
             cgrad = cgrad.reshape(cgrad.shape[0], cgrad.shape[-1]*cgrad.shape[-1])
+            x = x[(torch.argmax(self.softmax(outputs), dim=1) == n),:,:,:]
+            x = x.reshape(cgrad.shape[0], x.shape[-1]*x.shape[-1])
             for i in range(cgrad.shape[0]):
                 for j in range((i+1),cgrad.shape[0]):
-                    xloss += 1-self.cosim(cgrad[i,:], cgrad[j,:])
+                    xloss += (1-self.cosim(cgrad[i,:], cgrad[j,:]))/(1-self.cosim(x[i,:], x[j,:]))
         xloss /= y.size(0)
         log_probabilities = self.log_softmax(outputs)
         celoss = -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0)
         return celoss + self.alpha*xloss
 
+
+class SmoothnessConstraint(Module):
+    log_softmax = LogSoftmax()
+
+    def __init__(self, cweight = 0.1):
+        super().__init__()
+        self.alpha = cweight
+
+    def forward(self, outputs, grad, x, model, y):
+        grad = grad.squeeze()
+        d = grad.shape[-1]
+        log_probabilities = self.log_softmax(outputs)
+        xloss = torch.abs(torch.roll(F.pad(grad, (0,0,1,1)), 1, 1)[:,:d,:] - grad) + torch.abs(torch.roll(F.pad(grad, (1,1,0,0)), 1, 2)[:,:,:d]-grad)
+        return -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0)+self.alpha*xloss.mean()
+    
 
 class GeneralizabilityConstraint(Module): 
     log_softmax = LogSoftmax()
@@ -113,22 +138,4 @@ class GeneralizabilityConstraint(Module):
         log_probabilities = self.log_softmax(outputs)
         celoss = -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0)
         return celoss - self.alpha*xloss
-
-
-class SmoothnessConstraint(Module):
-    log_softmax = LogSoftmax()
-
-    def __init__(self, cweight = 0.1):
-        super().__init__()
-        self.alpha = cweight
-
-    def forward(self, outputs, grad, y):
-        grad = grad.squeeze()
-        d = grad.shape[-1]
-        log_probabilities = self.log_softmax(outputs)
-#        xloss = torch.stack([(torch.abs(grad[:,i+1,j] - grad[:,i,j])+torch.abs(grad[:,i,j+1] - grad[:,i,j])) for i in range(dim-1) for j in range(dim-1)])
-#        xloss = xloss.sum(dim=0)
-        xloss = torch.abs(torch.roll(F.pad(grad, (0,0,1,1)), 1, 1)[:,:d,:] - grad) + torch.abs(torch.roll(F.pad(grad, (1,1,0,0)), 1, 2)[:,:,:d]-grad)
-        return -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0)+self.alpha*xloss.mean()
-    
  

@@ -1,0 +1,15 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Apr 12 09:05:08 2022
+
+@author: unknown
+"""
+
+{
+  "constraint": "base", 
+  "lambda": "0.1", 
+  "epoch": "8", 
+  "topic": "config file",
+  "outfolder": r"C:\Users\unknown\Desktop\xai_projects\xai-learning-constraints\results\"
+}
+

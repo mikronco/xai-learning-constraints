@@ -8,6 +8,9 @@ Created on Sun Feb 27 17:27:01 2022
 import torch
 from torch.nn import LogSoftmax, Module, Softmax, CosineSimilarity
 import torch.nn.functional as F
+from utils.utils import input_grads, integrated_grads
+import torchvision.transforms as transforms
+import random
 
 class StandardCrossEntropy(Module):
     log_softmax = LogSoftmax()
@@ -56,6 +59,29 @@ class FidelityConstraint(Module):
         return celoss + self.alpha*xloss
     
 
+class SymmetryConstraint(Module):
+    log_softmax = LogSoftmax()
+    softmax = Softmax()
+    cosim = CosineSimilarity(dim=-1)
+    
+    def __init__(self, cweight = 1.):
+        super().__init__()
+        self.alpha = cweight
+    
+    def forward(self, outputs, grad, x, model, y):
+        angle = random.choice([5, 10, 15, 20, 25, 30])
+        x_rot =  transforms.functional.rotate(x, angle)
+        outputs0 = model(x_rot)
+        grad0 = input_grads(outputs0, x_rot, y)
+        grad_rot = transforms.functional.rotate(grad, angle)
+        grad_rot = grad_rot.squeeze().reshape(grad_rot.shape[0], grad_rot.shape[-1]**2)
+        grad0 = grad0.squeeze().reshape(grad0.shape[0], grad0.shape[-1]**2)
+        xloss = torch.abs(self.cosim(grad0, grad_rot))
+        log_probabilities = self.log_softmax(outputs)
+        celoss = -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0) 
+        return celoss + self.alpha*xloss.mean()
+    
+
 class LocalityConstraint(Module):
     log_softmax = LogSoftmax()
     
@@ -91,11 +117,11 @@ class ConsistencyConstraint(Module):
         for n in range(10):
             cgrad = ngrad[(torch.argmax(self.softmax(outputs), dim=1) == n),:,:,:]
             cgrad = cgrad.reshape(cgrad.shape[0], cgrad.shape[-1]*cgrad.shape[-1])
-            x = x[(torch.argmax(self.softmax(outputs), dim=1) == n),:,:,:]
-            x = x.reshape(cgrad.shape[0], x.shape[-1]*x.shape[-1])
+            cx = x[(torch.argmax(self.softmax(outputs), dim=1) == n),:,:,:]
+            cx = cx.reshape(cgrad.shape[0], x.shape[-1]*x.shape[-1])
             for i in range(cgrad.shape[0]):
                 for j in range((i+1),cgrad.shape[0]):
-                    xloss += (1-self.cosim(cgrad[i,:], cgrad[j,:]))/(1-self.cosim(x[i,:], x[j,:]))
+                    xloss += (1-self.cosim(cgrad[i,:], cgrad[j,:]))/(1-self.cosim(cx[i,:], cx[j,:]))
         xloss /= y.size(0)
         log_probabilities = self.log_softmax(outputs)
         celoss = -log_probabilities.gather(1, y.unsqueeze(1)).sum()/y.size(0)

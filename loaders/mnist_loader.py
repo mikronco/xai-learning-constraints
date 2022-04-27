@@ -8,12 +8,14 @@ Created on Sat Feb 26 16:40:16 2022
 import torch 
 from torchvision import datasets
 from torchvision.transforms import ToTensor
+from torchvision import transforms
 from captum.attr import Saliency
 import numpy as np
+from utils.utils import AddGaussianNoise
 
 device = torch.device('cpu')
 
-def MNIST_data(batch_size = 20, test_batch_size = 1, roar = False, model = None, perc = None):
+def MNIST_data(batch_size = 20, test_batch_size = 1, gauss_noise = False, mean = 1., std = 1., roar = False, model = None, perc = None):
     
     train_data = datasets.MNIST(
             root = 'data',
@@ -21,11 +23,20 @@ def MNIST_data(batch_size = 20, test_batch_size = 1, roar = False, model = None,
             transform = ToTensor(), 
             download = True,            
         )
-    test_data = datasets.MNIST(
+    
+    if gauss_noise:
+        test_data = datasets.MNIST(
         root = 'data', 
         train = False, 
-        transform = ToTensor()
-    )
+        transform = transforms.Compose([transforms.ToTensor(),
+                                                  AddGaussianNoise(mean, std)])
+        )
+    else:
+        test_data = datasets.MNIST(
+            root = 'data', 
+            train = False, 
+            transform = ToTensor()
+        )
     
     if roar:
         model.to(device)

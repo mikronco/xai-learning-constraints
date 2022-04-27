@@ -11,7 +11,7 @@ from loaders.mnist_loader import MNIST_data
 from torch.optim import Adam, Adadelta
 from models.mnist_cnn import CNN3b, CNN4b
 import torch
-from train import train_xai
+from train import train_xai, train_base
 import os
 import numpy as np
 from metrics.metrics import accuracy
@@ -29,8 +29,11 @@ if __name__ == '__main__':
     print(setup)
     loaders = MNIST_data(batch_size = setup["batch_size"])
     model = CNN3b().to(device)
-    optimizer = Adam(model.parameters())   
-    acc, loss  = train_xai(model, loaders, setup["epoch"], optimizer, penalty=setup["penalty"], alpha = setup["lambda"])
+    optimizer = Adam(model.parameters()) 
+    if setup["penalty"] == "base":
+        acc, loss  = train_base(model, loaders, setup["epoch"], optimizer)
+    else:
+        acc, loss  = train_xai(model, loaders, setup["epoch"], optimizer, penalty=setup["penalty"], alpha = setup["lambda"])
     np.save(os.path.join(setup["outfolder"], "acc_"+str(acc[-1])+"_"+setup["penalty"]+".npy"), acc)
     test_acc = accuracy(model,loaders)
     print("Test accuracy = ", test_acc)

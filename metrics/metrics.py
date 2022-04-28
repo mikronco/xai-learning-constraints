@@ -6,12 +6,32 @@ Created on Sun Feb 27 17:41:11 2022
 """
 
 import numpy as np
+import sys
 import torch
-from captum.attr import Saliency
+from captum.attr import Saliency, IntegratedGradients, DeepLift, NoiseTunnel, KernelShap
 from torch.nn import Softmax 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+def choose_attribution(model, method):
+    if method == "grad":
+        return Saliency(model)
+    
+    elif method == "intgrad":
+        return IntegratedGradients(model)
+    
+    elif method == "deeplift":
+        return DeepLift(model)
+    
+    elif method == "shap":
+        return KernelShap(model)
+    
+    elif method == "smoothgrad":
+        grad = Saliency(model)
+        return NoiseTunnel(grad)
+        
+    else:
+        sys.exit("Pick an attribution method!")
 
 def accuracy(model, loaders):
     model.eval()
@@ -39,15 +59,15 @@ def complexity(model, loaders):
     return mc.mean().item()
     
 
-def MoRF(model, loaders, perc, model_attr = None):
+def MoRF(model, loaders, perc, method="grad", model_attr = None):
     model.eval()
     softm = Softmax()
     drops = np.zeros(len(perc))
     if model_attr:
         model_attr.eval()
-        grad = Saliency(model_attr)
+        grad = choose_attribution(model_attr, method)
     else:
-        grad = Saliency(model)
+        grad = choose_attribution(model, method)
         
     for images, labels in loaders['test']:
         images, labels = images.to(device), labels.to(device)

@@ -11,13 +11,15 @@ from loaders.mnist_loader import MNIST_data
 from torch.optim import Adam, Adadelta
 from models.mnist_cnn import CNN3b, CNN4b
 import torch
-from train import train_xai, train_base
+from train import train_xai, train_base, train_savingloss
 import os
 import numpy as np
 from metrics.metrics import accuracy
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+#device = torch.device('cpu')
+                      
 parser = argparse.ArgumentParser()
 parser.add_argument("config_path", type=str, help="path to config file")
 args = parser.parse_args()
@@ -33,8 +35,9 @@ if __name__ == '__main__':
     if setup["penalty"] == "base":
         acc, loss  = train_base(model, loaders, setup["epoch"], optimizer)
     else:
-        acc, loss  = train_xai(model, loaders, setup["epoch"], optimizer, penalty=setup["penalty"], alpha = setup["lambda"])
-    np.save(os.path.join(setup["outfolder"], "acc_"+str(acc[-1])+"_"+setup["penalty"]+".npy"), acc)
+        acc, loss, xloss  = train_xai(model, loaders, setup["epoch"], optimizer, penalty=setup["penalty"], alpha = setup["lambda"])
+    np.save(os.path.join(setup["outfolder"], "acc_"+setup["penalty"]+".npy"), acc)
+    np.save(os.path.join(setup["outfolder"], "xloss_"+setup["penalty"]+".npy"), xloss)
     test_acc = accuracy(model,loaders)
     print("Test accuracy = ", test_acc)
     torch.save(model,os.path.join(setup["outfolder"],"mnist_cnn_"+setup["penalty"]+"_"+str(test_acc)[2:]+".pt"))

@@ -1,5 +1,5 @@
 {
-  "penalty": "grad_reg", 
+  "penalty": "gradreg", 
   "attribution": "gradients",
   "lambda": 1.5, 
   "batch_size": 60,

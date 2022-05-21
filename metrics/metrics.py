@@ -6,32 +6,14 @@ Created on Sun Feb 27 17:41:11 2022
 """
 
 import numpy as np
-import sys
 import torch
-from captum.attr import Saliency, IntegratedGradients, DeepLift, NoiseTunnel, KernelShap
+from captum.attr import Saliency
 from torch.nn import Softmax 
+from utils.utils import choose_attribution
+from captum.attr import LayerAttribution
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-def choose_attribution(model, method):
-    if method == "grad":
-        return Saliency(model)
-    
-    elif method == "intgrad":
-        return IntegratedGradients(model)
-    
-    elif method == "deeplift":
-        return DeepLift(model)
-    
-    elif method == "shap":
-        return KernelShap(model)
-    
-    elif method == "smoothgrad":
-        grad = Saliency(model)
-        return NoiseTunnel(grad)
-        
-    else:
-        sys.exit("Pick an attribution method!")
+#device = torch.device('cpu')
 
 def accuracy(model, loaders):
     model.eval()
@@ -71,8 +53,12 @@ def MoRF(model, loaders, perc, method="grad", model_attr = None):
         
     for images, labels in loaders['test']:
         images, labels = images.to(device), labels.to(device)
-        attr = grad.attribute(images, target=labels.item())
-        attr = attr.squeeze()
+        if method == "gradcam":
+            attr = grad.attribute(images, target=labels.item())
+            attr = LayerAttribution.interpolate(attr, (images.shape[-1],images.shape[-1]) )
+        else:
+            attr = grad.attribute(images, target=labels.item())
+            attr = attr.squeeze()
         for j in range(len(perc)):
             q3, q1 = np.percentile(attr[attr!=0].flatten().cpu().detach().numpy(), [perc[j], 100-perc[j]])
             maskpos = torch.ones((images.shape[-1], images.shape[-1]))

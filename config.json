@@ -1,10 +1,10 @@
 {
-  "penalty": "grad_reg", 
+  "penalty": "locality", 
   "attribution": "gradients",
-  "lambda": 1.5, 
+  "lambda": 0.1, 
   "batch_size": 60,
-  "epoch": 3, 
+  "epoch": 8, 
   "topic": "config file",
-  "outfolder": "C:\\Users\\unknown\\Desktop\\xai_projects\\xai-learning-constraints\\results"
+  "outfolder": "C:\\Users\\unknown\\Desktop\\xai_projects\\xai-learning-constraints\\results\\final"
 }
 

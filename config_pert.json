@@ -1,0 +1,8 @@
+{
+  "penalty": "consistency", 
+  "model": "C:\\Users\\unknown\\Desktop\\xai_projects\\xai-learning-constraints\\results\\final\\mnist_cnn_consistency_9873.pt",
+  "type": "gauss", 
+  "topic": "config file",
+  "outfolder": "C:\\Users\\unknown\\Desktop\\xai_projects\\xai-learning-constraints\\results\\final"
+}
+
